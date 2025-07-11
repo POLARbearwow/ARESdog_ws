@@ -121,7 +121,7 @@ private:
         // 关键修复：由于协议库按小端序解析了 DataID，而下位机发送的是大端序，
         // 在此处进行字节序反转以修正。例如，大端序 0x0201 会被误读为 0x0102，
         // 反转后恢复为 0x0201。
-        data_id = (data_id >> 8) | (data_id << 8);
+        // data_id = (data_id >> 8) | (data_id << 8);
 
         switch (data_id)
         {
@@ -306,10 +306,12 @@ private:
 
         // 关键: 为确保 DataID 在传输时为大端序 (以匹配下位机)，
         // 在此反转字节序，以抵消协议库可能存在的默认小端序序列化。
-        uint16_t data_id_be = (DATAID_MOTORCMD_ANGLE >> 8) | (DATAID_MOTORCMD_ANGLE << 8);
+        // uint16_t data_id_be = (DATAID_MOTORCMD_ANGLE >> 8) | (DATAID_MOTORCMD_ANGLE << 8);
+        // if (!protocol_.send_sync(data_id_be, payload, sizeof(payload)))
 
-        if (!protocol_.send_sync(data_id_be, payload, sizeof(payload)))
-        {
+  
+        if (!protocol_.send_sync(DATAID_MOTORCMD_ANGLE, payload, sizeof(payload)))
+        {   
             RCLCPP_ERROR(this->get_logger(), "Failed to send MotorCmd angle frame.");
         }
     }

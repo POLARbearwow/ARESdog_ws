@@ -20,7 +20,7 @@ public:
 
         // 创建一个周期为 100ms (10Hz) 的定时器来持续发布消息
         timer_ = this->create_wall_timer(
-            10ms, std::bind(&TestActionPublisher::publish_message, this));
+            100ms, std::bind(&TestActionPublisher::publish_message, this));
 
         RCLCPP_INFO(this->get_logger(), "Test publisher started. Publishing messages continuously at 10Hz...");
     }

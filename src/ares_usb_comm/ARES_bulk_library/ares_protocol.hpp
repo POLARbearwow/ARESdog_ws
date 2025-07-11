@@ -119,6 +119,7 @@ private:
     std::thread read_thread_;
     std::thread heartbeat_thread_;
     std::atomic<bool> running_{false}; // 控制线程运行状态
+    std::atomic<bool> stop_{false}; // 停止 USB 读取线程
 
     // 回调函数
     SyncCallback sync_cb_ = nullptr;

@@ -20,6 +20,9 @@ std::string Protocol::get_current_timestamp() {
     auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
 
     std::stringstream ss;
+    // 使用北京时间 (UTC+8)
+    // 注意：std::put_time 和 std::localtime 不是线程安全的，但在一个线程内调用通常没问题
+    // 如果在多线程环境中使用，需要加锁或使用线程安全的替代方案
     struct tm tm_buf; // POSIX 兼容的缓冲区
     time_t tt = now_c;
     // 使用 localtime_r (POSIX 线程安全版本) 或 localtime_s (Windows 线程安全版本)
@@ -51,6 +54,10 @@ Protocol::~Protocol() { // 析构函数确保断开连接
 bool Protocol::connect() {
     if (dev_handle_) { // 已经连接
         return true;
+    }
+
+    if(stop_) {
+        return false;
     }
 
     int r = libusb_init(&usb_ctx_);
@@ -96,6 +103,7 @@ void Protocol::disconnect() {
     }
 
     running_ = false; // 通知所有线程停止
+    stop_ = true;
 
     // 等待读取线程结束
     if (read_thread_.joinable()) {
@@ -173,9 +181,11 @@ bool Protocol::usb_write(const uint8_t* data, size_t len) {
 // 内部 USB 读线程循环
 void Protocol::usb_read_loop() {
     uint8_t buffer[USB_FS_MPS]; // 使用最大包大小作为缓冲区
+read_begin:
     while (running_) {
         int actual_length = 0;
         int r = libusb_bulk_transfer(dev_handle_, EP_IN, buffer, sizeof(buffer), &actual_length, 100); // 短超时，避免阻塞 disconnect
+        // std::cout << get_current_timestamp() << " USB read loop: r=" << r << ", actual_length=" << actual_length << std::endl;
 
         if (r == 0 && actual_length > 0) {
             on_receive_internal(buffer, actual_length);
@@ -189,6 +199,12 @@ void Protocol::usb_read_loop() {
             }
         }
         // 超时或无数据时继续循环
+    }
+    while(!running_ && !stop_) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    if(!stop_) {
+        goto read_begin;
     }
     std::cout << "USB read loop finished." << std::endl;
 }
@@ -213,13 +229,14 @@ void Protocol::on_receive_internal(const uint8_t* buf, size_t len) {
         case SYNC_FRAME_HEAD: { // 0x5A5A
             if (len >= offsetof(SyncFrame, data)) { // 至少包含头部和 data_id
                 const SyncFrame* frame = reinterpret_cast<const SyncFrame*>(buf);
-                uint16_t data_id = ntohs(frame->data_id);
+                uint16_t data_id = (frame->data_id);
                 size_t data_len = len - offsetof(SyncFrame, data);
 
                 // Sync 帧不检查 request_id，直接调用回调
                 if (sync_cb_) {
                     try {
                         sync_cb_(data_id, frame->data, data_len);
+                        // std::cout << get_current_timestamp() << " Sync data received: DataID=" << data_id << ", Len=" << data_len << std::endl;
                     } catch (const std::exception& e) {
                         std::cerr << get_current_timestamp() << " Error in sync_cb_: " << e.what() << std::endl; // OK
                     } catch (...) {
@@ -358,6 +375,7 @@ bool Protocol::send_sync(uint16_t data_id, const uint8_t* data, size_t len) {
 
 // 新增：心跳线程循环函数实现
 void Protocol::heartbeat_loop() {
+heartbeat_begin:
     while (running_) {
         // 构造心跳错误帧
         ErrorFrame heartbeat_frame;
@@ -377,8 +395,40 @@ void Protocol::heartbeat_loop() {
 
         // 等待指定间隔
         std::this_thread::sleep_for(HEARTBEAT_INTERVAL);
+
+        if(stop_) {
+            std::cerr << "Heartbeat loop stopped." << std::endl;
+            return;
+        }
     }
-     std::cout << "Heartbeat loop finished." << std::endl;
+    while(!running_) {
+reconnect_fail:
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if(stop_) {
+            return;
+        }
+
+        dev_handle_ = libusb_open_device_with_vid_pid(usb_ctx_, VID, PID);
+        if (!dev_handle_) {
+            goto reconnect_fail;
+        }
+    
+        // 尝试为设备解绑内核驱动（如果需要）
+        libusb_detach_kernel_driver(dev_handle_, 0); // 忽略错误，可能不需要
+    
+        int r = libusb_claim_interface(dev_handle_, 0); // 假设使用接口 0
+        if (r < 0) {
+            goto reconnect_fail;
+        }
+    
+        std::cout << "USB Device connected successfully." << std::endl;
+        running_ = true;
+        break;
+    }
+    if(running_) {
+        goto heartbeat_begin;
+    }
 }
 
 
