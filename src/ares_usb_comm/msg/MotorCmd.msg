@@ -1,1 +1,0 @@
-float32[9] angle # 电机目标角度 (rad) 

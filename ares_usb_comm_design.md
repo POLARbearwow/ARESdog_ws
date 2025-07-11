@@ -25,25 +25,38 @@
 | `0x0101` | Host → MCU | **MotorCmd** 电机角度 (9×float32) | `float32 angle[9]` = 36 B |
 | `0x0201` | MCU → Host | **MotorState-A** 反馈角度 (9×float32) | 同上 |
 | `0x0202` | MCU → Host | **MotorState-S** 反馈速度 (9×float32) | 同上 |
-| `0x0301` | MCU → Host | **IMU6** 3×Accel + 3×Gyro | `float32 accel[3]` + `float32 gyro[3]` = 24 B |
+| `0x0301` | MCU → Host | **IMU** 4×Quat + 3×Gyro | `float quat[4]` + `float gyro[3]` = 28 B |
 
 > 注：
-> 1. 所有浮点数均采用 **IEEE-754 float32 大端序**（网络字节序）。
-> 2. 单帧即可完整承载 9×float32 (36 B)。若未来电机数增多，可使用递增 DataID 扩展。
+> 1. **混合字节序**：`DataID` 本身采用 **大端序 (Big-Endian)**, 而 Payload 中的所有浮点数 (float32) 均采用 **小端序 (Little-Endian)**。
+> 2. 单帧即可完整承载 9×float32 (36 B)。若未来电机数增多，可使用递增 DataID 扩展。但最大不能超过60B
 
-### 2.3 功能码定义 (ExecFrame)
-| FuncID | 方向 | 说明 |
-|--------|------|-----|
-| `0x0001` | Host → MCU | 保存零位校准 |
-| `0x0002` | Host → MCU | 查询固件版本 |
-| `0xF001` | MCU → Host | Bootloader 跳转完成 |
-| … | … | 后续扩展 |
+### 2.2.1 电机索引映射
+`MotorCmd` (action) 和 `MotorState` (joint_state) 消息中的 9-float 数组遵循以下索引到电机的映射：
 
-### 2.4 CRC 与心跳
+| 索引 | 关节名称 |
+|------|--------------------|
+| 0 | `FL_thigh_joint_i` |
+| 1 | `FL_thigh_joint_o` |
+| 2 | `FR_thigh_joint_i` |
+| 3 | `FR_thigh_joint_o` |
+| 4 | `waist_joint`      |
+| 5 | `RL_thigh_joint_i` |
+| 6 | `RL_thigh_joint_o` |
+| 7 | `RR_thigh_joint_i` |
+| 8 | `RR_thigh_joint_o` |
+
+> **坐标系约定**:
+> * **髋关节 (hip)**: 正值表示腿向外侧摆开 (abduction)。
+> * **膝关节 (knee)**: 正值表示腿向后弯曲 (flexion)。
+> * **腰部关节 (waist)**: 从机器人后方俯视，正值表示顺时针旋转。
+
+
+### 2.3 CRC 与心跳
 * CRC-8 (多项式 0x07)，计算范围 **不含** Head 与 Tail。
 * 每 `3 ms` MCU 发送 `ErrorFrame` 心跳 (`request_id=0xFF, error_code=0x0100`). Host 复用现有 `heartbeat_loop()` 定时发送同帧。
 
-### 2.5 多频率帧调度策略
+### 2.4 多频率帧调度策略
 不同 `DataID` 对应的数据刷新率不同，下位机需按固定周期将帧写入 USB FIFO，上位机按到达顺序解析。
 
 | DataID | 期望周期 | 典型频率 | 说明 |
@@ -53,12 +66,6 @@
 | `0x0301` (IMU6) | 2 ms | 500 Hz | STM32 回传，优先级 **最高** |
 | `ErrorFrame` (心跳) | 3 ms | ≈333 Hz | 双向，检测链路健康 |
 
-> *优先级*：IMU > MotorState > Heartbeat。
-
-#### 下位机发送侧
-1. **环形发送队列**：不同优先级对应多级环形缓冲。高优先级队列溢出时覆盖低优先级，防止高频数据阻塞。
-2. **帧间隔控制**：使用 `SysTick` 计数器确保各 DataID 最小发送间隔不小于表中周期。
-3. **批量写出**：可一次 `libusb_write()` 发送多帧（64 B × N），减少握手损耗。
 
 #### 上位机接收侧
 1. **时间戳队列**：`usb_read_loop()` 到帧即刻推送至无锁环形队列，随后由 `parser_thread` 按 DataID 发布 ROS 话题。
@@ -69,29 +76,25 @@
 
 ## 3. ROS 2 接口层设计
 ### 3.1 消息
-```
-# msg/MotorCmd.msg
-float32[9] angle
----
-# msg/MotorState.msg
-float32[9] angle
-float32[9] speed
----
-# sensor_msgs/Imu 已复用
-```
+使用 ROS 2 标准消息类型：
+- `sensor_msgs/msg/JointState`: 用于发布电机状态（位置、速度）和接收电机指令。
+- `geometry_msgs/msg/Quaternion`: 用于发布 IMU 的姿态（方向）。
+- `geometry_msgs/msg/Vector3`: 用于发布 IMU 的角速度。
+- `sensor_msgs/msg/Imu` 已被拆分为以上两个独立话题。
 
 ### 3.2 话题 / 服务
 | 名称 | 类型 | 方向 | 描述 |
 |------|------|------|------|
-| `/motor_cmd` | MotorCmd | App → usb_node | 发送目标角度 |
-| `/motor_state` | MotorState | usb_node → App | 反馈电机状态 |
-| `/imu/data_raw` | sensor_msgs/Imu | usb_node → App | IMU 六轴原始数据 |
+| `/action` | sensor_msgs/JointState | App → usb_node | 发送目标角度 (position) |
+| `/joint_state` | sensor_msgs/JointState | usb_node → App | 反馈电机状态 (position, velocity) |
+| `/orient` | geometry_msgs/Quaternion | usb_node → App | IMU 姿态（当前为默认值） |
+| `/angvel` | geometry_msgs/Vector3 | usb_node → App | IMU 角速度 |
 | `/exec` | ares_comm/srv/Execute (保持兼容) | 双向 | 异步指令调用 |
 
 ### 3.3 节点
 1. **usb_bridge_node (C++)**  
-   * 封装 `Protocol` 类；订阅 `/motor_cmd`，**仅**打包为 `SyncFrame(0x0101)` 发送。
-   * 在 `sync_cb_` 中根据 `DataID` 分发并发布 ROS 消息。
+   * 封装 `Protocol` 类；订阅 `/action`，打包 `JointState.position` 为 `SyncFrame(0x0101)` 发送。
+   * 在 `sync_cb_` 中根据 `DataID` 分发并发布 `/joint_state`, `/orient`, `/angvel` 消息。
    * 维护心跳与错误回调。
 
 2. **diagnostic_node (Python)** *(可选)*  
@@ -123,17 +126,18 @@ ares_usb_comm/
 ## 5. 上下位机数据流程
 ```mermaid
 sequenceDiagram
-    participant App
+    participant control
     participant usb_node
     participant STM32
 
-    App->>usb_node: publish MotorCmd (topic)
+    control->>usb_node: publish JointState (topic /action)
     usb_node->>STM32: SyncFrame 0x0101 (angles)
     STM32->>usb_node: SyncFrame 0x0201 (angle feedback)
     STM32-->>usb_node: SyncFrame 0x0202 (speed feedback)
-    STM32-->>usb_node: SyncFrame 0x0301 (IMU6)
-    usb_node->>App: publish MotorState
-    usb_node->>App: publish Imu
+    STM32-->>usb_node: SyncFrame 0x0301 (IMU Quat+Gyro)
+    usb_node->>control: publish JointState (topic /joint_state)
+    usb_node->>control: publish Quaternion (topic /orient)
+    usb_node->>control: publish Vector3 (topic /angvel)
     Note over usb_node,STM32: ErrorFrame 心跳每 3 ms 双向发送
 ```
 
@@ -149,14 +153,9 @@ sequenceDiagram
 
 ---
 
-## 7. 后续工作
-1. 完成 `MotorCmd`、`MotorState` 消息定义与 `package.xml` 依赖声明。
-2. 根据此文档实现 `usb_bridge_node.cpp`，并在 `progress.md` 更新日志。
-3. 与 STM32 固件端对齐 DataID 与量程缩放，实现端到端回环测试。 
-
 ---
 
-## 8. USB 全双工特性与注意事项
+## 7. USB 全双工特性与注意事项
 1. **Endpoint 独立**：Bulk `EP_OUT (0x01)` 与 `EP_IN (0x81)` 在硬件上分离，理论支持全双工。Host 每 125 µs 可调度多个事务，满足上表带宽（< 1 MBit/s）。
 2. **Host 轮询模型**：USB 读依赖主机发起，故需持续调用 `libusb_bulk_transfer()` 或使用异步 `libusb_submit_transfer()` 保持 IN 端带宽。
 3. **MTU 对齐**：保持每帧 ≤ 64 B，避免分段；若批量写需控制在 64×N 字节。
