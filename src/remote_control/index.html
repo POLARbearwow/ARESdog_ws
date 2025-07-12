@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三指控制系统 | 多点触控修复版</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            touch-action: none;
+            user-select: none;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c1a33, #152d4f);
+            color: #ffffff;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* 顶部信息栏 */
+        .header {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
+        }
+        
+        .logo {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            background: linear-gradient(to right, #00c6ff, #0072ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            flex-grow: 1;
+        }
+        
+        .status-container {
+            display: flex;
+            gap: 15px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(40, 70, 120, 0.5);
+            padding: 8极速码字px 15px;
+            border-radius: 30px;
+            min-width: 140px;
+        }
+        
+        .indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .indicator.connecting {
+            background-color: #ffcc00;
+            box-shadow: 0 0 8px #ffcc00;
+        }
+        
+        .indicator.connected {
+            background-color: #00ffaa;
+            box-shadow: 0 0 10px #00ffaa;
+        }
+        
+        .indicator.disconnected {
+            background-color: #ff4444;
+            box-shadow: 0 0 8px #ff4444;
+        }
+        
+        .btn {
+            padding: 8px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 50px;
+            border: none;
+            background: linear-gradient(to right, #3a7bd5, #00d2ff);
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.45);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-disconnect {
+            background: linear-gradient(to right, #ff416c, #ff4b2b);
+        }
+        
+        .control-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+        
+        /* 按钮栏 */
+        .button-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 15px 5px;
+            flex-wrap: wrap;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            margin: 10px auto;
+            width: 95%;
+            max-width: 1200px;
+            z-index: 10;
+        }
+        
+        .action-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px 0;
+            font-size: 16px;
+            font-weight: 600;
+            background: linear-gradient(to right, #4CAF50, #2E7D32);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .action-btn:active {
+            transform: translateY(1px);
+        }
+        
+        /* 控制区域 */
+        .controls-wrapper {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            z-index: 20;
+            padding: 0 20px;
+        }
+        
+        /* 摇杆容器 */
+        .joystick-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .joystick-label {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #ffffff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+            text-align: center;
+        }
+        
+        /* 摇杆样式 */
+        .joystick-outer {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: rgba(40, 70, 120, 0.6);
+            border: 2px solid rgba(100, 180, 255, 0.5);
+            box-shadow: 
+                inset 0 0 30px rgba(0, 0, 0, 0.5),
+                0 10px 40px rgba(0, 0, 0, 0.7);
+            overflow: visible;
+            margin: 0 auto;
+        }
+        
+        /* 摇杆网格背景 */
+        .joystick-outer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-image: 
+                radial-gradient(circle at center, transparent 40%, rgba(255, 255, 255, 0.07) 85%),
+                linear-gradient(0deg, transparent 48%, rgba(255, 255, 255, 0.15) 50%, transparent 52%),
+                linear-gradient(90deg, transparent 48%, rgba(255, 255, 255, 0.15) 50%, transparent 52%);
+            opacity: 0.9;
+        }
+        
+        .joystick-inner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ff9966, #ff5500);
+            box-shadow: 
+                0 0 25px rgba(255, 85, 0, 0.8),
+                0 0 50px rgba(极速码字255, 85, 0, 0.4);
+            z-index: 2;
+            cursor: pointer;
+            transition: none;
+            transform: translate(-50%, -50%);
+        }
+        
+        .joystick-inner::after {
+            content: '';
+            position: absolute;
+            top: 15%;
+            left: 15%;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.35);
+        }
+        
+        /* 高度控制竖条 - 位于中间位置 */
+        .vertical-slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 215px;
+            position: relative;
+            flex: 0 0 100px;
+            margin: 0 0 0 600px;
+            order: 1;
+        }
+        
+        .vertical-slider-label {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: #ffffff;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+            font-weight: 700;
+        }
+        
+        .vertical-slider-background {
+            width: 35px;
+            height: 180px;
+            background: rgba(100, 180, 255, 0.3);
+            border-radius: 20px;
+            position: relative;
+            box-shadow: 
+                inset 0 0 15px rgba(0, 0, 0, 0.5),
+                0 5px 20px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+        }
+        
+        .fill-indicator {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(to top, #ff5500, #ff9966);
+            border-radius: 0 0 20px 20px;
+            transition: height 0.1s;
+        }
+        
+        .vertical-slider-knob {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ff9966, #ff5500);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: 
+                0 0 15px rgba(255, 85, 0, 0.8),
+                0 0 30px rgba(255, 85, 0, 0.4);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.1s;
+        }
+        
+        /* 坐标显示面板 */
+        .coords-display {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 16px;
+            padding: 15px 30px;
+            width: 320px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            text-align: center;
+            z-index: 15;
+        }
+        
+        .coords-title {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #aaccff;
+        }
+        
+        .coords-values {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 16px;
+        }
+        
+        .coord-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .coord-label {
+            color: #ff9966;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .coord-value {
+            font-size: 18px;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 6px 12px;
+            width: 100%;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* 操作说明 */
+        .instructions {
+            text-align: center;
+            padding: 10px;
+            color: #ccccff;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .multi-touch-hint {
+            text-align: center;
+            font-size: 16px;
+            color: #00e5ff;
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.7);
+            margin-bottom: 10px;
+        }
+        
+        /* 调试信息 */
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 200;
+            max-width: 300px;
+        }
+        
+        /* 屏幕方向提示 */
+        .orientation-warning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            color: white;
+            font-size: 24px;
+            text-align: center;
+            padding-top: 30%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        @media only screen and (orientation: portrait) {
+            .orientation-warning {
+                display: flex;
+            }
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 900px) {
+            .joystick-outer {
+                width: 140px;
+                height: 140px;
+            }
+            
+            .vertical-slider-container {
+                height: 140px;
+                flex: 0 0 80px;
+            }
+            
+            .vertical-slider-background {
+                height: 140px;
+            }
+            
+            .status-item {
+                min-width: 120px;
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+            
+            .action-btn {
+                min-width: 80px;
+                padding: 10px 0;
+                font-size: 14px;
+            }
+            
+            .coords-display {
+                width: 90%;
+                max-width: 280px;
+                bottom: 15px;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .controls-wrapper {
+                flex-wrap: wrap;
+                justify-content: space-around;
+            }
+            
+            .joystick-container {
+                min-width: 45%;
+            }
+            
+            .vertical-slider-container {
+                order: 3;
+                flex: 0 0 80%;
+                height: 80px;
+                margin-top: 20px;
+            }
+            
+            .vertical-slider-background {
+                height: 80px;
+            }
+            
+            .vertical-slider-knob {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .action-btn {
+                min-width: 70px;
+                font-size: 13px;
+                padding: 8px 0;
+            }
+            
+            .coords-display {
+                padding: 10px 15px;
+                width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部信息栏 -->
+    <div class="header">
+        <div class="logo">三指控制系统 | 多点触控修复版</div>
+        
+        <div class="control-container">
+            <div class="status-container">
+                <div class="status-item">
+                    <span class="indicator disconnected" id="ros-indicator"></span>
+                    <span id="ros-status">未连接</span>
+                </div>
+                
+                <div class="status-item">
+                    <span class="value-label">消息:</span>
+                    <span id="message-count">0</span>
+                </div>
+            </div>
+            
+            <div>
+                <button id="connectBtn" class="btn">连接 ROS</button>
+                <button id="disconnectBtn" class="btn btn-disconnect">断开连接</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 竖屏警告 -->
+    <div class="orientation-warning">
+        <h2>请切换到横屏模式</h2>
+        <p>此应用需要横屏以获得最佳体验</p>
+    </div>
+    
+    <!-- 按钮行 - 6个按钮 -->
+    <div class="button-row">
+        <button class="action-btn">开始导航</button>
+        <button class="action-btn">自动返航</极速码字button>
+        <button class="action-btn">速度+</button>
+        <button class="action-btn">速度-</button>
+        <button class="action-btn">地图</button>
+        <button class="action-btn">紧急停止</button>
+    </div>
+    
+    
+    <!-- 控制区域 -->
+    <div class="controls-wrapper">
+        <!-- 左侧摇杆 - 移动控制 -->
+        <div class="joystick-container" style="order: 0;">
+            <div class="joystick-label">移动控制</div>
+            <div class="joystick-outer" id="left-outer">
+                <div class="joystick-inner" id="left-inner"></div>
+            </div>
+        </div>
+        
+        <!-- 高度控制竖条 - 位于中间 -->
+        <div class="vertical-slider-container">
+            <div class="vertical-slider-label">高度控制</div>
+            <div class="vertical-slider-background" id="vertical-slider">
+                <div class="fill-indicator" id="fill-indicator"></div>
+                <div class="vertical-slider-knob" id="vertical-knob"></div>
+            </div>
+        </div>
+        
+        <!-- 右侧摇杆 - 旋转控制 -->
+        <div class="joystick-container" style="order: 2;">
+            <div class="joystick-label">旋转控制</div>
+            <div class="joystick-outer" id="right-outer">
+                <div class="joystick-inner" id="right-inner"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 坐标显示面板 -->
+    <div class="coords-display">
+        <div class="coords-title">控制参数输出</div>
+        <div class="coords-values">
+            <div class="coord-item">
+                <div class="coord-label">前进速度</div>
+                <div id="left-x-output" class="coord-value">0.00</div>
+            </div>
+            <div class="coord-item">
+                <div class="coord-label">横向速度</div>
+                <div id="left-y-output" class="coord-value">0.00</div>
+            </div>
+            <div class="coord-item">
+                <div class="coord-label">旋转速度</div>
+                <div id="right-x-output" class="coord-value">0.00</div>
+            </div>
+            <div class="coord-item">
+                <div class="coord-label">高度控制</div>
+                <div id="vertical-value" class="coord-value">0.50</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 调试信息 -->
+    <div class="debug-info" id="debugInfo">系统初始化中...</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1.2.0/build/roslib.min.js"></script>
+    <script>
+        const ip = 'ws://192.168.31.171:'
+        const port = '9090'; // 替换为你的Rosbridge服务器端口
+        
+        // 全局变量
+        let verticalValue = 0.5;
+        let verticalActive = false;
+        let verticalStartY = 0;
+        let verticalSliderHeight = 200;
+        
+        // 摇杆输出值
+        let leftOutput = { x: 0, y: 0 };
+        let rightOutput = { x: 0 };
+        let heightOutput = 0;
+        
+        // 活动触摸点记录
+        let activeTouches = {
+            left: null,
+            vertical: null,
+            right: null
+        };
+        
+        // 高度滑块控制元素
+        const verticalKnob = document.getElementById('vertical-knob');
+        const verticalSlider = document.getElementById('vertical-slider');
+        const fillIndicator = document.getElementById('fill-indicator');
+        
+        // 摇杆元素
+        const leftJoystickOuter = document.getElementById('left-outer');
+        const leftJoystickInner = document.getElementById('left-inner');
+        const rightJoystickOuter = document.getElementById('right-outer');
+        const rightJoystickInner = document.getElementById('right-inner');
+        
+        // 更新调试信息
+        function updateDebugInfo(message) {
+            document.getElementById('debugInfo').textContent = message;
+        }
+        
+        // 初始化高度滑块位置
+        function initVerticalSlider() {
+            const sliderRect = verticalSlider.getBoundingClientRect();
+            verticalSliderHeight = sliderRect.height;
+            const knobHeight = verticalKnob.offsetHeight;
+            const maxY = verticalSliderHeight - knobHeight;
+            const currentY = maxY * (1 - verticalValue);
+            
+            verticalKnob.style.top = currentY + 'px';
+            fillIndicator.style.height = (verticalValue * 100) + '%';
+            
+            updateDebugInfo(`高度控制初始化完成: 总高=${verticalSliderHeight}px, 滑块位置=${currentY}px`);
+        }
+        
+        // 高度条事件处理 - 支持多点触控
+        function setupVerticalSliderEvents() {
+            // 滑块触摸开始
+            verticalKnob.addEventListener('touchstart', function(e) {
+                // 检查是否已有一个活动触摸点
+                if (activeTouches.vertical !== null) return;
+                
+                const touch = e.changedTouches[0];
+                verticalActive = true;
+                activeTouches.vertical = touch.identifier;
+                
+                // 记录初始触摸位置
+                const knobRect = verticalKnob.getBoundingClientRect();
+                verticalStartY = touch.clientY - knobRect.top;
+                
+                // 添加活动状态样式
+                verticalKnob.style.transform = 'translateX(-50%) scale(1.2)';
+                verticalSlider.style.boxShadow = '0 0 20px rgba(255, 85, 0, 0.5)';
+                
+                e.preventDefault();
+                updateDebugInfo("高度滑块开始触摸");
+            }, { passive: false });
+            
+            // 滑块背景触摸
+            verticalSlider.addEventListener('touchstart', function(e) {
+                if (activeTouches.vertical !== null) return;
+                
+                const touch = e.changedTouches[0];
+                verticalActive = true;
+                activeTouches.vertical = touch.identifier;
+                
+                const sliderRect = verticalSlider.getBoundingClientRect();
+                // 计算新位置
+                const newY = touch.clientY - sliderRect.top - (verticalKnob.offsetHeight / 2);
+                
+                // 更新高度值
+                updateVerticalValue(newY);
+                
+                // 添加活动状态样式
+                verticalKnob.style.transform = 'translateX(-50%) scale(1.2)';
+                verticalSlider.style.boxShadow = '0 0 20px rgba(255, 85, 0, 0.5)';
+                
+                e.preventDefault();
+                updateDebugInfo("高度条触摸开始");
+            }, { passive: false });
+            
+            // 滑块鼠标按下
+            verticalKnob.addEventListener('mousedown', function(e) {
+                verticalActive = true;
+                const knobRect = verticalKnob.getBoundingClientRect();
+                verticalStartY = e.clientY - knobRect.top;
+                
+                verticalKnob.style.transform = 'translateX(-50%) scale(1.2)';
+                verticalSlider.style.boxShadow = '0 0 20px rgba(255, 85, 0, 0.5)';
+                
+                e.preventDefault();
+                updateDebugInfo("高度滑块鼠标按下");
+            });
+            
+            verticalSlider.addEventListener('mousedown', function(e) {
+                if (e.target === verticalSlider || e.target === fillIndicator) {
+                    verticalActive = true;
+                    const sliderRect = verticalSlider.getBoundingClientRect();
+                    const newY = e.clientY - sliderRect.top - (verticalKnob.offsetHeight / 2);
+                    
+                    updateVerticalValue(newY);
+                    
+                    verticalKnob.style.transform = 'translateX(-50%) scale(1.2)';
+                    verticalSlider.style.boxShadow = '0 0 20px rgba(255, 85, 0, 0.5)';
+                    
+                    e.preventDefault();
+                    updateDebugInfo("高度条鼠标按下");
+                }
+            });
+        }
+        
+        // 更新高度值
+        function updateVerticalValue(yPos) {
+            const knobHeight = verticalKnob.offsetHeight;
+            const minY = 0;
+            const maxY = verticalSliderHeight - knobHeight;
+            
+            // 约束在有效范围内
+            let constrainedY = Math.max(minY, Math.min(maxY, yPos));
+            
+            // 计算高度值 (0-1)
+            const newValue = 1 - (constrainedY / maxY);
+            verticalValue = newValue;
+            
+            // 更新滑块位置
+            verticalKnob.style.top = constrainedY + 'px';
+            
+            // 更新填充指示器
+            fillIndicator.style.height = (newValue * 100) + '%';
+            
+            // 更新高度显示值
+            document.getElementById('vertical-value').textContent = verticalValue.toFixed(2);
+
+            heightOutput = verticalValue; // 更新高度输出值
+            
+            // 调试信息
+            updateDebugInfo(`高度值: ${verticalValue.toFixed(2)}, Y位置: ${constrainedY.toFixed(0)}px`);
+        }
+        
+        // 摇杆功能 - 支持多点触控
+        function setupJoystickEvents() {
+            // 左侧摇杆触摸开始
+            leftJoystickOuter.addEventListener('touchstart', function(e) {
+                // 检查是否已有一个活动触摸点
+                if (activeTouches.left !== null) return;
+                
+                const touch = e.changedTouches[0];
+                activeTouches.left = touch.identifier;
+                
+                const rect = leftJoystickOuter.getBoundingClientRect();
+                const centerX = rect.left + rect.width/2;
+                const centerY = rect.top + rect.height/2;
+                
+                // 更新摇杆位置
+                updateJoystickPosition('left', touch.clientX - centerX, touch.clientY - centerY);
+                
+                e.preventDefault();
+                updateDebugInfo("左摇杆开始触摸");
+            }, { passive: false });
+            
+            // 右侧摇杆触摸开始
+            rightJoystickOuter.addEventListener('touchstart', function(e) {
+                // 检查是否已有一个活动触摸点
+                if (activeTouches.right !== null) return;
+                
+                const touch = e.changedTouches[0];
+                activeTouches.right = touch.identifier;
+                
+                const rect = rightJoystickOuter.getBoundingClientRect();
+                const centerX = rect.left + rect.width/2;
+                const centerY = rect.top + rect.height/2;
+                
+                // 更新摇杆位置
+                updateJoystickPosition('right', touch.clientX - centerX, touch.clientY - centerY);
+                
+                e.preventDefault();
+                updateDebugInfo("右摇杆开始触摸");
+            }, { passive: false });
+            
+            // 左侧摇杆鼠标按下
+            leftJoystickOuter.addEventListener('mousedown', function(e) {
+                const rect = leftJoystickOuter.getBoundingClientRect();
+                const centerX = rect.left + rect.width/2;
+                const centerY = rect.top + rect.height/2;
+                
+                updateJoystickPosition('left', e.clientX - centerX, e.clientY - centerY);
+                e.preventDefault();
+            });
+            
+            // 右侧摇杆鼠标按下
+            rightJoystickOuter.addEventListener('mousedown', function(e) {
+                const rect = rightJoystickOuter.getBoundingClientRect();
+                const centerX = rect.left + rect.width/2;
+                const centerY = rect.top + rect.height/2;
+                
+                updateJoystickPosition('right', e.clientX - centerX, e.clientY - centerY);
+                e.preventDefault();
+            });
+        }
+        
+        // 更新摇杆位置
+        function updateJoystickPosition(type, dx, dy) {
+            const rect = (type === 'left' ? 
+                          leftJoystickOuter : 
+                          rightJoystickOuter).getBoundingClientRect();
+            
+            // 最大移动距离
+            const maxDistance = Math.min(rect.width, rect.height) * 0.35;
+            
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            let newDx = dx;
+            let newDy = dy;
+            
+            // 限制在最大距离内
+            if (distance > maxDistance) {
+                const scale = maxDistance / distance;
+                newDx = dx * scale;
+                newDy = dy * scale;
+            }
+            
+            // 更新摇杆位置
+            const element = (type === 'left' ? 
+                             leftJoystickInner : 
+                             rightJoystickInner);
+            element.style.transform = `translate(calc(-50% + ${newDx}px), calc(-50% + ${newDy}px))`;
+            
+            // 存储输出值
+            if (type === 'left') {
+                leftOutput.x = newDx / maxDistance;
+                leftOutput.y = newDy / maxDistance;
+                document.getElementById('left-x-output').textContent = (-leftOutput.y).toFixed(2);
+                document.getElementById('left-y-output').textContent = leftOutput.x.toFixed(2);
+                updateDebugInfo(`左摇杆: X:${leftOutput.x.toFixed(2)}, Y:${leftOutput.y.toFixed(2)}`);
+            } else {
+                rightOutput.x = newDx / maxDistance;
+                document.getElementById('right-x-output').textContent = rightOutput.x.toFixed(2);
+                updateDebugInfo(`右摇杆: X:${rightOutput.x.toFixed(2)}`);
+            }
+        }
+        
+        // 触摸移动处理 - 多点触控支持
+        document.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+            
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                
+                // 更新左侧摇杆
+                if (activeTouches.left === touch.identifier) {
+                    const rect = leftJoystickOuter.getBoundingClientRect();
+                    const centerX = rect.left + rect.width/2;
+                    const centerY = rect.top + rect.height/2;
+                    
+                    updateJoystickPosition('left', touch.clientX - centerX, touch.clientY - centerY);
+                }
+                
+                // 更新右侧摇杆
+                if (activeTouches.right === touch.identifier) {
+                    const rect = rightJoystickOuter.getBoundingClientRect();
+                    const centerX = rect.left + rect.width/2;
+                    const centerY = rect.top + rect.height/2;
+                    
+                    updateJoystickPosition('right', touch.clientX - centerX, touch.clientY - centerY);
+                }
+                
+                // 更新高度条
+                if (activeTouches.vertical === touch.identifier) {
+                    const sliderRect = verticalSlider.getBoundingClientRect();
+                    
+                    // 计算新位置
+                    let newY;
+                    if (touch.target === verticalKnob) {
+                        newY = touch.clientY - sliderRect.top - verticalStartY;
+                    } else {
+                        newY = touch.clientY - sliderRect.top - (verticalKnob.offsetHeight / 2);
+                    }
+                    
+                    // 更新高度值
+                    updateVerticalValue(newY);
+                }
+            }
+        }, { passive: false });
+        
+        // 触摸结束处理
+        document.addEventListener('touchend', function(e) {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                
+                // 重置左侧摇杆
+                if (activeTouches.left === touch.identifier) {
+                    resetJoystick('left');
+                    activeTouches.left = null;
+                    updateDebugInfo("左摇杆结束触摸");
+                }
+                
+                // 重置右侧摇杆
+                if (activeTouches.right === touch.identifier) {
+                    resetJoystick('right');
+                    activeTouches.right = null;
+                    updateDebugInfo("右摇杆结束触摸");
+                }
+                
+                // 重置高度条
+                if (activeTouches.vertical === touch.identifier) {
+                    verticalActive = false;
+                    activeTouches.vertical = null;
+                    
+                    // 移除活动状态样式
+                    verticalKnob.style.transform = 'translateX(-50%) scale(1)';
+                    verticalSlider.style.boxShadow = '';
+                    updateDebugInfo("高度滑块结束触摸");
+                }
+            }
+        });
+        
+        // 鼠标移动处理
+        document.addEventListener('mousemove', function(e) {
+            if (verticalActive) {
+                const sliderRect = verticalSlider.getBoundingClientRect();
+                const newY = e.clientY - sliderRect.top - verticalStartY;
+                updateVerticalValue(newY);
+            }
+            
+            if (activeTouches.left === 'mouse') {
+                const rect = leftJoystickOuter.getBoundingClientRect();
+                const centerX = rect.left + rect.width/2;
+                const centerY = rect.top + rect.height/2;
+                updateJoystickPosition('left', e.clientX - centerX, e.clientY - centerY);
+            }
+            
+            if (activeTouches.right === 'mouse') {
+                const rect = rightJoystickOuter.getBoundingClientRect();
+                const centerX = rect.left + rect.width/2;
+                const centerY = rect.top + rect.height/2;
+                updateJoystickPosition('right', e.clientX - centerX, e.clientY - centerY);
+            }
+        });
+        
+        // 鼠标抬起处理
+        document.addEventListener('mouseup', function() {
+            if (verticalActive) {
+                verticalActive = false;
+                verticalKnob.style.transform = 'translateX(-50%) scale(1)';
+                verticalSlider.style.boxShadow = '';
+                updateDebugInfo("高度滑块鼠标抬起");
+            }
+            
+            if (activeTouches.left === 'mouse') {
+                resetJoystick('left');
+                activeTouches.left = null;
+            }
+            
+            if (activeTouches.right === 'mouse') {
+                resetJoystick('right');
+                active极速码字Touches.right = null;
+            }
+        });
+        
+        // 重置摇杆位置
+        function resetJoystick(type) {
+            const element = (type === 'left' ? 
+                             leftJoystickInner : 
+                             rightJoystickInner);
+            element.style.transform = 'translate(-50%, -50%)';
+            
+            if (type === 'left') {
+                leftOutput = { x: 0, y: 0 };
+                document.getElementById('left-x-output').textContent = "0.00";
+                document.getElementById('left-y-output').textContent = "0.00";
+            } else {
+                rightOutput = { x: 0 };
+                document.getElementById('right-x-output').textContent = "0.00";
+            }
+        }
+        
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            // 初始化高度滑块
+            initVerticalSlider();
+            
+            // 设置事件监听
+            setupVerticalSliderEvents();
+            setupJoystickEvents();
+            
+            // 按钮事件
+            document.getElementById('connectBtn').addEventListener('click', function() {
+                startConnection();
+                updateDebugInfo('尝试连接到ROS服务器...');
+            });
+            
+            document.getElementById('disconnectBtn').addEventListener('click', function() {
+                if (ros) {
+                    ros.close();
+                    updateDebugInfo('已断开与ROS服务器的连接');
+                    document.getElementById('connectBtn').textContent = '连接';
+                    document.getElementById('disconnectBtn').textContent = '断开连接';
+                    document.getElementById('ros-status').textContent = '未连接';
+                    document.getElementById('ros-indicator').className = 'indicator disconnected';
+                    connected = false;
+                } else {
+                    updateDebugInfo('当前未连接到ROS服务器');
+                }
+            });
+            
+            // 初始状态
+            updateDebugInfo('系统初始化完成');
+            
+            // 窗口大小变化时重新计算位置
+            window.addEventListener('resize', function() {
+                initVerticalSlider();
+                updateDebugInfo('重新计算所有控制位置');
+            });
+        });
+
+        let ros;
+        let cmdVel;
+        let height;
+        let connected = false;
+
+        function startConnection() {
+            ros = new ROSLIB.Ros({
+                url: ip + port // 修正 #1：使用文件顶部的 ip 和 port 变量，而不是硬编码的错误地址
+            });
+
+            ros.on('connection', () => {
+                console.log('Connected to ROS Bridge');
+                cmdVel = new ROSLIB.Topic({
+                ros: ros,
+                name: '/cmd_vel',
+                messageType: 'geometry_msgs/Twist'
+                });
+                height = new ROSLIB.Topic({
+                    ros: ros,
+                    name: '/height',
+                    messageType: 'std_msgs/Float32'
+                });
+                updateDebugInfo('已连接到ROS桥接');
+                document.getElementById('connectBtn').textContent = '已连接';
+                document.getElementById('disconnectBtn').textContent = '断开连接';
+                document.getElementById('ros-status').textContent = '已连接';
+                document.getElementById('ros-indicator').className = 'indicator connected';
+                connected = true;
+            });
+
+            ros.on('error', (error) => {
+                console.error('Error connecting to ROS: ', error);
+                alert('Error connecting to ROS: 9090', error);
+            });
+
+            ros.on('close', () => {
+                console.log('Disconnected from ROS');
+                updateDebugInfo('已断开与ROS服务器的连接');
+
+            });
+        }
+
+        function move(){
+            if (!ros) {
+                console.error('ROS connection not established');
+                alert('ROS connection not established');
+                return;
+            }
+
+            if (!cmdVel) {
+                console.error('Publisher not created');
+                alert('Publisher not created');
+                return;
+            }
+
+            if (!height) {
+                console.error('Height publisher not created');
+                alert('Height publisher not created');
+                return;
+            }
+
+            // 修正 #2：将摇杆输出正确映射到 Twist 消息
+            // 前进/后退 -> linear.x (由左摇杆的Y轴控制，Y轴上下反转)
+            // 左/右平移 -> linear.y (由左摇杆的X轴控制)
+            // 旋转 -> angular.z (由右摇杆的X轴控制，X轴左右反转以匹配直观)
+            const twist = new ROSLIB.Message({
+                linear: {
+                    x: -leftOutput.y,
+                    y: leftOutput.x,
+                    z: 0
+                },
+                angular: {
+                    x: 0,
+                    y: 0, // 修正：高度值不应影响角速度
+                    z: -rightOutput.x 
+                }
+            });
+
+            const heightMsg = new ROSLIB.Message({
+                data: heightOutput // 高度值通过独立的话题发送
+            });
+            
+            // 发布消息
+            // 修正 #3：更新日志以反映正确的数据
+            console.log(`Publishing Twist: linear x=${twist.linear.x.toFixed(2)}, y=${twist.linear.y.toFixed(2)}, angular z=${twist.angular.z.toFixed(2)}`);
+            console.log(`Publishing Height: ${heightMsg.data.toFixed(2)}`);
+
+            cmdVel.publish(twist);
+            height.publish(heightMsg);
+            document.getElementById('message-count').textContent = parseInt(document.getElementById('message-count').textContent) + 1;
+        }
+
+        // 定时发布消息
+        const interval = setInterval(() => {
+            if (connected) {
+                move();
+            }
+        }, 10);
+        
+    </script>
+</body>
+</html>
