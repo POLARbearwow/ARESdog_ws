@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(robot_controller)
+project(rl_controller)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -25,7 +25,7 @@ endif()
 ament_python_install_package(${PROJECT_NAME})
 
 install(PROGRAMS
-  robot_controller/robot_controller_node.py
+  rl_controller/rl_controller_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

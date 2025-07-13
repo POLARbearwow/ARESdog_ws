@@ -2,7 +2,7 @@ from glob import glob
 import os
 from setuptools import find_packages, setup
 
-package_name = 'robot_controller'
+package_name = 'rl_controller'
 
 setup(
     name=package_name,
@@ -23,7 +23,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'robot_controller_node = robot_controller.robot_controller_node:main',
+            'rl_controller_node = rl_controller.rl_controller_node:main',
         ],
     },
 ) 

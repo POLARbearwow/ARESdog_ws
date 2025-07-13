@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(ares_usb_comm)
+project(ares_usb)
 
 #------------------------------------------------------------
 # 依赖

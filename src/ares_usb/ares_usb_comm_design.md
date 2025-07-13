@@ -63,14 +63,14 @@
 |--------|----------|---------|------|
 | `0x0101` (MotorCmd) | 按需 | ≤ 100 Hz | 由上位机主动发送，依据控制循环调度 |
 | `0x0201/0x0202` (MotorState) | 5 ms | 200 Hz | STM32 实时回传，优先级 **高** |
-| `0x0301` (IMU6) | 2 ms | 500 Hz | STM32 回传，优先级 **最高** |
+| `0x0301` (IMU7) | 2 ms | 500 Hz | STM32 回传，优先级 **最高** |
 | `ErrorFrame` (心跳) | 3 ms | ≈333 Hz | 双向，检测链路健康 |
 
 
-#### 上位机接收侧
+<!-- #### 上位机接收侧
 1. **时间戳队列**：`usb_read_loop()` 到帧即刻推送至无锁环形队列，随后由 `parser_thread` 按 DataID 发布 ROS 话题。
 2. **丢包检测**：维护上一帧到达 `std::chrono::steady_clock::time_point`，若超过 2× 周期触发 `WARN` 日志。
-3. **回压保护**：若解析线程滞后，读线程仍写入环形缓冲，当即用最新帧覆盖旧帧（采用 2^n 大小指数环）。
+3. **回压保护**：若解析线程滞后，读线程仍写入环形缓冲，当即用最新帧覆盖旧帧（采用 2^n 大小指数环）。 -->
 
 ---
 
@@ -80,7 +80,6 @@
 - `sensor_msgs/msg/JointState`: 用于发布电机状态（位置、速度）和接收电机指令。
 - `geometry_msgs/msg/Quaternion`: 用于发布 IMU 的姿态（方向）。
 - `geometry_msgs/msg/Vector3`: 用于发布 IMU 的角速度。
-- `sensor_msgs/msg/Imu` 已被拆分为以上两个独立话题。
 
 ### 3.2 话题 / 服务
 | 名称 | 类型 | 方向 | 描述 |
@@ -89,7 +88,7 @@
 | `/joint_state` | sensor_msgs/JointState | usb_node → App | 反馈电机状态 (position, velocity) |
 | `/orient` | geometry_msgs/Quaternion | usb_node → App | IMU 姿态（当前为默认值） |
 | `/angvel` | geometry_msgs/Vector3 | usb_node → App | IMU 角速度 |
-| `/exec` | ares_comm/srv/Execute (保持兼容) | 双向 | 异步指令调用 |
+
 
 ### 3.3 节点
 1. **usb_bridge_node (C++)**  
@@ -102,7 +101,7 @@
 
 ---
 
-## 4. 目录结构
+<!-- ## 4. 目录结构
 ```
 ares_usb_comm/
 ├── ARES_bulk_library/         # 复用/重命名, 仅新增 DataID/FuncID
@@ -119,7 +118,7 @@ ares_usb_comm/
 │   └── bringup.launch.py
 ├── CMakeLists.txt
 └── package.xml
-```
+``` -->
 
 ---
 
@@ -141,7 +140,7 @@ sequenceDiagram
     Note over usb_node,STM32: ErrorFrame 心跳每 3 ms 双向发送
 ```
 
----
+<!-- ---
 
 ## 6. 关键实现要点
 1. **Payload 打包解包**：
@@ -151,9 +150,9 @@ sequenceDiagram
 4. **兼容旧协议**：保留原 `ExecFrame` 流程及心跳，实现平滑迁移。
 5. **多频率调度**：实现环形缓冲 + 优先级仲裁，保证高频 IMU 帧不被低频内容饿死。
 
----
+--- -->
 
----
+<!-- ---
 
 ## 7. USB 全双工特性与注意事项
 1. **Endpoint 独立**：Bulk `EP_OUT (0x01)` 与 `EP_IN (0x81)` 在硬件上分离，理论支持全双工。Host 每 125 µs 可调度多个事务，满足上表带宽（< 1 MBit/s）。
@@ -162,4 +161,4 @@ sequenceDiagram
 4. **突发写入**：上位机短时间内发送大量 MotorCmd 时，需睡眠 `0.1 ms` 间隔，避免填满 Device FIFO。
 5. **延迟统计**：在心跳帧中复用 `error_code` 低字节上报 MCU->Host 单向延迟，以供调参。
 
---- 
+---  -->

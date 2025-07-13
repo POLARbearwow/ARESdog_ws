@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>ares_usb_comm</name>
+  <name>ares_usb</name>
   <version>0.0.1</version>
   <description>USB communication ROS2 package for ARES robot.</description>
 

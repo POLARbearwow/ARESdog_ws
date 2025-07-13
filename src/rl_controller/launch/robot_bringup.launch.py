@@ -23,7 +23,7 @@ def generate_launch_description() -> LaunchDescription:
     usb_bridge_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
-                FindPackageShare("ares_usb_comm"),
+                FindPackageShare("ares_usb"),
                 "launch",
                 "comm_bringup.launch.py",  # corrected filename
             ])
@@ -43,9 +43,9 @@ def generate_launch_description() -> LaunchDescription:
 
     # High-level ONNX controller node from *robot_controller*
     controller_node = Node(
-        package="robot_controller",
-        executable="robot_controller_node",
-        name="robot_controller",
+        package="rl_controller",
+        executable="rl_controller_node",
+        name="rl_controller",
         output="screen",
     )
 
