@@ -23,4 +23,22 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+
+include_directories(include)
+
+add_executable(aresdog_controller_node
+  src/aresdog_controller_node.cpp
+  src/balance_controller.cpp
+  src/leg_kinematics.cpp)
+
+ament_target_dependencies(aresdog_controller_node rclcpp geometry_msgs sensor_msgs tf2 tf2_geometry_msgs)
+
+install(TARGETS aresdog_controller_node
+  DESTINATION lib/${PROJECT_NAME})
+
 ament_package()
