@@ -23,8 +23,10 @@
 | DataID | 方向 | 数据含义 | Payload 字节布局 |
 |--------|------|----------|-----------------|
 | `0x0101` | Host → MCU | **MotorCmd** 电机角度 (9×float32) | `float32 angle[9]` = 36 B |
+| `0x0102` | Host → MCU | **TorqueCmd** 前馈力矩 (9×float32) | `float32 tau_ff[9]` = 36 B |
 | `0x0201` | MCU → Host | **MotorState-A** 反馈角度 (9×float32) | 同上 |
 | `0x0202` | MCU → Host | **MotorState-S** 反馈速度 (9×float32) | 同上 |
+| `0x0203` | MCU → Host | **MotorState-T** 反馈实际力矩 (9×float32) | `float32 tau[9]` = 36 B |
 | `0x0301` | MCU → Host | **IMU** 4×Quat + 3×Gyro | `float quat[4]` + `float gyro[3]` = 28 B |
 
 > 注：
@@ -62,7 +64,8 @@
 | DataID | 期望周期 | 典型频率 | 说明 |
 |--------|----------|---------|------|
 | `0x0101` (MotorCmd) | 按需 | ≤ 100 Hz | 由上位机主动发送，依据控制循环调度 |
-| `0x0201/0x0202` (MotorState) | 5 ms | 200 Hz | STM32 实时回传，优先级 **高** |
+| `0x0102` (TorqueCmd) | 按需 | ≤ 100 Hz | 与 `MotorCmd` 同周期发送，MIT 控制模式的前馈力矩 |
+| `0x0201/0x0202/0x0203` (MotorState) | 5 ms | 200 Hz | STM32 实时回传，角度/速度/力矩，优先级 **高** |
 | `0x0301` (IMU7) | 2 ms | 500 Hz | STM32 回传，优先级 **最高** |
 | `ErrorFrame` (心跳) | 3 ms | ≈333 Hz | 双向，检测链路健康 |
 
@@ -77,18 +80,24 @@
 ## 3. ROS 2 接口层设计
 ### 3.1 消息
 使用 ROS 2 标准消息类型：
-- `sensor_msgs/msg/JointState`: 用于发布电机状态（位置、速度）和接收电机指令。
+- `sensor_msgs/msg/JointState`: 
+  - **position** → 角度 (rad)
+  - **velocity** → 速度 (rad/s)
+  - **effort**   → 力矩 (N·m)
+- `sensor_msgs/msg/JointState` (命名 `/torque_cmd`)：仅使用 **effort** 字段传输 MIT 控制模式的前馈力矩。
 - `geometry_msgs/msg/Quaternion`: 用于发布 IMU 的姿态（方向）。
 - `geometry_msgs/msg/Vector3`: 用于发布 IMU 的角速度。
 
 ### 3.2 话题 / 服务
 | 名称 | 类型 | 方向 | 描述 |
 |------|------|------|------|
-| `/action` | sensor_msgs/JointState | App → usb_node | 发送目标角度 (position) |
-| `/joint_state` | sensor_msgs/JointState | usb_node → App | 反馈电机状态 (position, velocity) |
+| `/action` | sensor_msgs/JointState | App → usb_node | 发送目标角度 (position) & 前馈力矩 (effort，可选) |
+| `/torque_cmd` | sensor_msgs/JointState | App → usb_node | **可选**：仅发送前馈力矩 (effort) |
+| `/joint_state` | sensor_msgs/JointState | usb_node → App | 反馈电机状态 (position, velocity, effort) |
 | `/orient` | geometry_msgs/Quaternion | usb_node → App | IMU 姿态（当前为默认值） |
 | `/angvel` | geometry_msgs/Vector3 | usb_node → App | IMU 角速度 |
 
+> 实现上，`usb_bridge_node` 在 MIT 模式下会同时打包角度 (`0x0101`) 与力矩 (`0x0102`) 两帧发送，或者在简化模式下仅发送角度帧。
 
 ### 3.3 节点
 1. **usb_bridge_node (C++)**  

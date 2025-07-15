@@ -57,6 +57,11 @@ add_executable(test_motor_cmd_node
 ament_target_dependencies(test_motor_cmd_node rclcpp sensor_msgs)
 install(TARGETS test_motor_cmd_node DESTINATION lib/${PROJECT_NAME})
 
+# Install Python modules and scripts
 ament_python_install_package(aresdog_controller)
+install(
+  PROGRAMS aresdog_controller/jump_controller
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_package()
