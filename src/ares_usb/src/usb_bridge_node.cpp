@@ -45,6 +45,10 @@ public:
         joint_state_cmd_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
             "action", 10,
             std::bind(&UsbBridgeNode::joint_state_cmd_callback, this, std::placeholders::_1));
+        // 新增：订阅前馈力矩指令
+        torque_cmd_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
+            "torque_cmd", 10,
+            std::bind(&UsbBridgeNode::torque_cmd_callback, this, std::placeholders::_1));
 
         // 尝试连接 USB 设备 ----------------------------------------------
         if (!protocol_.connect())
@@ -181,6 +185,23 @@ private:
                 RCLCPP_WARN(this->get_logger(), "MotorState-S frame length mismatch: %zu", len);
             }
             break;
+        case DATAID_MOTORSTATE_TORQUE: // 新增：实际力矩反馈
+            if (len >= 36)
+            {
+                std::array<float, 9> torques;
+                unpack_float_array_le<9>(data, torques);
+                {
+                    std::lock_guard<std::mutex> lock(motor_state_mutex_);
+                    latest_torques_ = torques;
+                    torques_received_ = true;
+                }
+                publish_joint_state_if_ready();
+            }
+            else
+            {
+                RCLCPP_WARN(this->get_logger(), "MotorState-T frame length mismatch: %zu", len);
+            }
+            break;
         case DATAID_IMU6:
             if (len >= 28) // 长度从 24 (6*4) 更新为 28 (7*4)
             {
@@ -230,6 +251,9 @@ private:
     {
         std::lock_guard<std::mutex> lock(motor_state_mutex_);
         if (!(angles_received_ && speeds_received_))
+            return; // 等待力矩到齐再发布
+
+        if (!torques_received_)
             return;
 
         auto msg = sensor_msgs::msg::JointState();
@@ -237,17 +261,19 @@ private:
         msg.name = joint_names_; // 填充关节名称，符合 JointState 标准用法
         msg.position.resize(9);
         msg.velocity.resize(9);
+        msg.effort.resize(9);
 
         // 从 C++11 的 std::array 转换到 std::vector
         for (size_t i = 0; i < 9; ++i)
         {
             msg.position[i] = latest_angles_[i];
             msg.velocity[i] = latest_speeds_[i];
+            msg.effort[i]   = latest_torques_[i];
         }
 
-        RCLCPP_DEBUG(this->get_logger(), "Publish JointState");
+        RCLCPP_DEBUG(this->get_logger(), "Publish JointState (with torque)");
         joint_state_pub_->publish(msg);
-        angles_received_ = speeds_received_ = false; // 重置标志
+        angles_received_ = speeds_received_ = torques_received_ = false; // 重置标志
     }
 
     // ---------------- 发送电机指令 --------------------------------------
@@ -316,6 +342,47 @@ private:
         }
     }
 
+    // ---------------- 发送力矩指令 --------------------------------------
+    /**
+     * @brief 订阅回调：将 JointState.effort 转为 TorqueCmd 帧并发送。
+     */
+    void torque_cmd_callback(const sensor_msgs::msg::JointState::SharedPtr msg)
+    {
+        if (msg->name.size() != msg->effort.size())
+        {
+            RCLCPP_WARN(this->get_logger(), "Received 'torque_cmd' with mismatched name (%zu) and effort (%zu) sizes. Ignoring.",
+                        msg->name.size(), msg->effort.size());
+            return;
+        }
+
+        std::array<float, 9> torques;
+        std::vector<bool> received(9, false);
+
+        for (size_t i = 0; i < msg->name.size(); ++i)
+        {
+            auto it = std::find(joint_names_.begin(), joint_names_.end(), msg->name[i]);
+            if (it != joint_names_.end())
+            {
+                size_t index = std::distance(joint_names_.begin(), it);
+                torques[index] = static_cast<float>(msg->effort[i]);
+                received[index] = true;
+            }
+        }
+
+        if (std::find(received.begin(), received.end(), false) != received.end())
+        {
+            RCLCPP_WARN(this->get_logger(), "'torque_cmd' message does not contain all 9 joints. Ignoring.");
+            return;
+        }
+
+        uint8_t payload[36];
+        pack_float_array_le<9>(torques, payload);
+        if (!protocol_.send_sync(DATAID_MOTORCMD_TORQUE, payload, sizeof(payload)))
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to send TorqueCmd frame.");
+        }
+    }
+
     // ---------------- 成员变量 ------------------------------------------
     ares::Protocol protocol_{}; ///< 底层 USB 协议封装
 
@@ -340,9 +407,14 @@ private:
     // MotorState 缓冲
     std::array<float, 9> latest_angles_{};
     std::array<float, 9> latest_speeds_{};
+    std::array<float, 9> latest_torques_{};      // 新增：实际力矩
     bool angles_received_{false};
     bool speeds_received_{false};
+    bool torques_received_{false};
     std::mutex motor_state_mutex_;
+
+    // 新增：TorqueCmd 订阅者
+    rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr torque_cmd_sub_;
 };
 
 } // namespace ares_usb_comm

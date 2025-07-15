@@ -12,9 +12,11 @@ namespace ares_usb_comm {
 
 // -------------------- DataID 常量 --------------------
 constexpr uint16_t DATAID_MOTORCMD_ANGLE   = 0x0101; ///< 上位机 -> 下位机：电机角度指令
+constexpr uint16_t DATAID_MOTORCMD_TORQUE  = 0x0102; ///< 上位机 -> 下位机：前馈力矩指令
 // constexpr uint16_t DATAID_MOTORCMD_SPEED   = 0x0102; ///< 已废弃：电机速度指令
 constexpr uint16_t DATAID_MOTORSTATE_ANGLE = 0x0201; ///< 下位机 -> 上位机：角度反馈
 constexpr uint16_t DATAID_MOTORSTATE_SPEED = 0x0202; ///< 下位机 -> 上位机：速度反馈
+constexpr uint16_t DATAID_MOTORSTATE_TORQUE = 0x0203; ///< 下位机 -> 上位机：实际力矩反馈
 constexpr uint16_t DATAID_IMU6             = 0x0301; ///< 下位机 -> 上位机：IMU 六轴
 
 // -------------------- 浮点与网络序转换 --------------------

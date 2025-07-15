@@ -60,7 +60,7 @@ install(TARGETS test_motor_cmd_node DESTINATION lib/${PROJECT_NAME})
 # Install Python modules and scripts
 ament_python_install_package(aresdog_controller)
 install(
-  PROGRAMS aresdog_controller/jump_controller
+  PROGRAMS aresdog_controller/jump_controller.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
