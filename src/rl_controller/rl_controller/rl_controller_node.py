@@ -150,22 +150,22 @@ class RobotControllerNode(Node):
     """ROS 2 node providing real-time joint targets using an ONNX policy."""
 
     CONTROLLED_JOINT_NAMES: List[str] = [
-        "front_waist_fl_i_up",
-        "front_waist_fl_o_up",
-        "front_waist_fr_i_up",
-        "front_waist_fr_o_up",
-        "front_waist_waist",
-        "back_waist_hl_i_up",
-        "back_waist_hl_o_up",
-        "back_waist_hr_i_up",
-        "back_waist_hr_o_up",
+        "FL_thigh_joint_i",
+        "FL_thigh_joint_o",
+        "FR_thigh_joint_i",
+        "FR_thigh_joint_o",
+        "waist_joint",
+        "RL_thigh_joint_i",
+        "RL_thigh_joint_o",
+        "RR_thigh_joint_i",
+        "RR_thigh_joint_o",
     ]
 
     def __init__(self) -> None:
         super().__init__("robot_controller")
 
         # Resolve ONNX model path via package share directory for portability
-        pkg_share_dir = get_package_share_directory("robot_controller")
+        pkg_share_dir = get_package_share_directory("rl_controller")
         onnx_path = os.path.join(pkg_share_dir, "policy.onnx")
 
         self._controller = ModelController(model_path=onnx_path, ros_node=self)

@@ -20,13 +20,17 @@ public:
   : Node("aresdog_controller_node")
   {
     // Declare parameters with defaults
-    kp_roll_  = this->declare_parameter("kp_roll", 0.03);   // m / rad
-    kp_pitch_ = this->declare_parameter("kp_pitch", 0.03);  // m / rad
+    kp_roll_  = this->declare_parameter("kp_roll", 0.08);   // m / rad
+    kp_pitch_ = this->declare_parameter("kp_pitch", 0.15);  // m / rad
     nominal_z_ = this->declare_parameter("nominal_z", -0.20);
     nominal_x_ = this->declare_parameter("nominal_x",  0.00);
 
     balance_controller_ = std::make_unique<BalanceController>(static_cast<float>(kp_roll_), static_cast<float>(kp_pitch_));
     leg_kinematics_     = std::make_unique<LegKinematics>(0.224f, 0.090f);
+
+    RCLCPP_INFO(this->get_logger(), "AresDog Static Balance Controller started.");
+    RCLCPP_INFO(this->get_logger(), "Params: kp_roll=%.3f, kp_pitch=%.3f, nominal_z=%.2f",
+      kp_roll_, kp_pitch_, nominal_z_);
 
     // Publisher – JointState to /action
     action_pub_ = this->create_publisher<sensor_msgs::msg::JointState>("/action", 10);
@@ -51,18 +55,58 @@ private:
   {
     // 1. Get Δz from balance controller
     LegZAdjustments dz = balance_controller_->compute_leg_adjustments(*msg);
+    RCLCPP_DEBUG(this->get_logger(), "Balance dz: fl=%.3f, fr=%.3f, rl=%.3f, rr=%.3f",
+      dz.fl, dz.fr, dz.rl, dz.rr);
 
-    // 2. Compute IK for each leg (x is constant, z varies)
+    // 2. Compute target points for each leg
+    std::array<Point2D, 4> targets;
+    targets[0] = {static_cast<float>(nominal_x_), static_cast<float>(nominal_z_ + dz.fl)}; // FL
+    targets[1] = {static_cast<float>(nominal_x_), static_cast<float>(nominal_z_ + dz.fr)}; // FR
+    targets[2] = {static_cast<float>(nominal_x_), static_cast<float>(nominal_z_ + dz.rl)}; // RL
+    targets[3] = {static_cast<float>(nominal_x_), static_cast<float>(nominal_z_ + dz.rr)}; // RR
+
+    // --- SAFETY CLAMP: Ensure all targets are within reachable workspace ---
+    const float min_reach_sq = 0.134f * 0.134f;
+    const float max_reach_sq = 0.314f * 0.314f;
+
+    for (auto& p : targets) {
+      float dist_sq = p.x * p.x + p.z * p.z;
+      if (dist_sq < min_reach_sq) {
+        RCLCPP_WARN_THROTTLE(
+          this->get_logger(), *this->get_clock(), 2000,
+          "Target (%.2f, %.2f) is too close. Clamping to min reach.", p.x, p.z);
+        float dist = std::sqrt(dist_sq);
+        if (dist > 1e-6f) {
+          float scale = std::sqrt(min_reach_sq) / dist;
+          p.x *= scale;
+          p.z *= scale;
+        } else {
+          p.x = 0.0f;
+          p.z = -std::sqrt(min_reach_sq);
+        }
+      } else if (dist_sq > max_reach_sq) {
+        RCLCPP_WARN_THROTTLE(
+          this->get_logger(), *this->get_clock(), 2000,
+          "Target (%.2f, %.2f) is too far. Clamping to max reach.", p.x, p.z);
+        float dist = std::sqrt(dist_sq);
+        float scale = std::sqrt(max_reach_sq) / dist;
+        p.x *= scale;
+        p.z *= scale;
+      }
+    }
+    // --- END SAFETY CLAMP ---
+
+    // 3. Compute IK for each leg (x is constant, z varies)
     float theta1_fl, theta4_fl;
     float theta1_fr, theta4_fr;
     float theta1_rl, theta4_rl;
     float theta1_rr, theta4_rr;
 
     bool ok = true;
-    ok &= leg_kinematics_->inverseKinematics(nominal_x_, nominal_z_ + dz.fl, theta1_fl, theta4_fl);
-    ok &= leg_kinematics_->inverseKinematics(nominal_x_, nominal_z_ + dz.fr, theta1_fr, theta4_fr);
-    ok &= leg_kinematics_->inverseKinematics(nominal_x_, nominal_z_ + dz.rl, theta1_rl, theta4_rl);
-    ok &= leg_kinematics_->inverseKinematics(nominal_x_, nominal_z_ + dz.rr, theta1_rr, theta4_rr);
+    ok &= leg_kinematics_->inverseKinematics(targets[0].x, targets[0].z, theta1_fl, theta4_fl);
+    ok &= leg_kinematics_->inverseKinematics(targets[1].x, targets[1].z, theta1_fr, theta4_fr);
+    ok &= leg_kinematics_->inverseKinematics(targets[2].x, targets[2].z, theta1_rl, theta4_rl);
+    ok &= leg_kinematics_->inverseKinematics(targets[3].x, targets[3].z, theta1_rr, theta4_rr);
 
     if (!ok)
     {
@@ -71,7 +115,7 @@ private:
       return;
     }
 
-    // 3. Map θ → motor command per latest hardware table
+    // 4. Map θ → motor command per latest hardware table
     std::array<double, 9> cmd{};
 
     cmd[0] = -static_cast<double>(theta1_fl);                   // FL_i  (index 0)

@@ -7,6 +7,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -40,5 +41,22 @@ ament_target_dependencies(aresdog_controller_node rclcpp geometry_msgs sensor_ms
 
 install(TARGETS aresdog_controller_node
   DESTINATION lib/${PROJECT_NAME})
+
+add_executable(aresdog_balance_walk_node
+  src/aresdog_balance_walk_node.cpp
+  src/balance_controller.cpp
+  src/leg_kinematics.cpp)
+
+ament_target_dependencies(aresdog_balance_walk_node rclcpp geometry_msgs sensor_msgs tf2 tf2_geometry_msgs)
+
+install(TARGETS aresdog_balance_walk_node
+  DESTINATION lib/${PROJECT_NAME})
+
+add_executable(test_motor_cmd_node
+  src/test_motor_cmd_node.cpp)
+ament_target_dependencies(test_motor_cmd_node rclcpp sensor_msgs)
+install(TARGETS test_motor_cmd_node DESTINATION lib/${PROJECT_NAME})
+
+ament_python_install_package(aresdog_controller)
 
 ament_package()

@@ -140,7 +140,7 @@ private:
                         if (i < angles.size() - 1)
                             ss << ", ";
                     }
-                    RCLCPP_DEBUG(this->get_logger(), "MotorState-Angles: [%s]", ss.str().c_str());
+                    // RCLCPP_DEBUG(this->get_logger(), "MotorState-Angles: [%s]", ss.str().c_str());
 
                     std::lock_guard<std::mutex> lock(motor_state_mutex_);
                     latest_angles_ = angles;
@@ -168,7 +168,7 @@ private:
                         if (i < speeds.size() - 1)
                             ss << ", ";
                     }
-                    RCLCPP_DEBUG(this->get_logger(), "MotorState-Speeds: [%s]", ss.str().c_str());
+                    // RCLCPP_DEBUG(this->get_logger(), "MotorState-Speeds: [%s]", ss.str().c_str());
 
                     std::lock_guard<std::mutex> lock(motor_state_mutex_);
                     latest_speeds_ = speeds;
@@ -208,7 +208,7 @@ private:
                     ss << std::fixed << std::setprecision(3);
                     ss << "Quat(x,y,z,w): " << imu_data[0] << ", " << imu_data[1] << ", " << imu_data[2] << ", " << imu_data[3]
                        << ", Gyro(x,y,z): " << imu_data[4] << ", " << imu_data[5] << ", " << imu_data[6];
-                    RCLCPP_DEBUG(this->get_logger(), "IMU Data: %s", ss.str().c_str());
+                    // RCLCPP_DEBUG(this->get_logger(), "IMU Data: %s", ss.str().c_str());
                 }
             }
             else
@@ -299,7 +299,7 @@ private:
             if (i < 9 - 1)
                 ss << ", ";
         }
-        RCLCPP_DEBUG(this->get_logger(), "Send MotorCmd-Angle from 'action' topic: [%s]", ss.str().c_str());
+        // RCLCPP_DEBUG(this->get_logger(), "Send MotorCmd-Angle from 'action' topic: [%s]", ss.str().c_str());
 
         uint8_t payload[36];
         pack_float_array_le<9>(angles, payload);
