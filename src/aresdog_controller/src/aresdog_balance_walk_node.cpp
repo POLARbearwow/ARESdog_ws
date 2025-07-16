@@ -59,22 +59,23 @@ public:
     //--------------------------------------------------------------
     // Parameter declaration (with sensible defaults)
     //--------------------------------------------------------------
-    kp_roll_      = this->declare_parameter("kp_roll",  0.15);    // [m/rad] - Smaller gain for smoother correction
+    kp_roll_      = this->declare_parameter("kp_roll",  0.0);    // [m/rad] - Smaller gain for smoother correction
     kp_pitch_     = this->declare_parameter("kp_pitch", 0.0);    // [m/rad] - Smaller gain for smoother correction
 
-    nominal_z_    = this->declare_parameter("nominal_z",   -0.21);// [m] Height during stance phase
+    nominal_z_    = this->declare_parameter("nominal_z",   -0.215);// [m] Height during stance phase
     swing_base_z_ = this->declare_parameter("swing_base_z", -0.21); // [m] Base height for swing trajectory
     nominal_x_    = this->declare_parameter("nominal_x",    0.00);// [m]
 
-    stride_length_= this->declare_parameter("stride_length", 0.20);// [m]
-    step_height_  = this->declare_parameter("step_height",  0.03);// [m]
-    cycle_time_   = this->declare_parameter("cycle_time",   0.5); // [s]
+    stride_length_= this->declare_parameter("stride_length", 0.12);// [m]
+    step_height_  = this->declare_parameter("step_height",  0.025);// [m]
+    cycle_time_   = this->declare_parameter("cycle_time",   0.2); // [s]
     duty_factor_  = this->declare_parameter("duty_factor",  0.5); // swing ratio (0-1)
 
     control_rate_ = this->declare_parameter("control_rate", 100.0); // [Hz]
 
     //--------------------------------------------------------------
     // Core components
+    
     //--------------------------------------------------------------
     balance_controller_ = std::make_unique<BalanceController>(static_cast<float>(kp_roll_), static_cast<float>(kp_pitch_));
     leg_kinematics_     = std::make_unique<LegKinematics>(0.224f, 0.090f);
@@ -277,7 +278,7 @@ private:
       const double s = (phase - duty_factor_) / (1.0 - duty_factor_); // 0->1
       const double t   = 2.0 * M_PI * s;
       p.x =  half_stride - stride_length_ * (s - std::sin(t) / (2.0 * M_PI));
-      p.z = nominal_z_;
+      p.z = nominal_z_ -  0.1*static_cast<double>(step_height_) * (1.0 - std::cos(t)) / 2.0;
     }
 
     return p;
