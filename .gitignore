@@ -1,0 +1,6 @@
+build/
+install/
+log/
+.cursorrules
+progress.md
+.vscode/
