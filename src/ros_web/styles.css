@@ -1,0 +1,812 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    touch-action: none;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #0c1a33, #152d4f);
+    color: #ffffff;
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+}
+
+/* 顶部信息栏 */
+.header {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 100;
+}
+
+.logo {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    background: linear-gradient(to right, #00c6ff, #0072ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    flex-grow: 1;
+}
+
+.status-container {
+    display: flex;
+    gap: 15px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(40, 70, 120, 0.5);
+    padding: 8px 15px;
+    border-radius: 30px;
+    min-width: 140px;
+}
+
+.indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.indicator.connecting {
+    background-color: #ffcc00;
+    box-shadow: 0 0 8px #ffcc00;
+}
+
+.indicator.connected {
+    background-color: #00ffaa;
+    box-shadow: 0 0 10px #00ffaa;
+}
+
+.indicator.disconnected {
+    background-color: #ff4444;
+    box-shadow: 0 0 8px #ff4444;
+}
+
+.btn {
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    background: linear-gradient(to right, #3a7bd5, #00d2ff);
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.45);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-disconnect {
+    background: linear-gradient(to right, #ff416c, #ff4b2b);
+}
+
+.control-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    flex-wrap: wrap;
+}
+
+/* 按钮栏 */
+.button-row {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 15px 5px;
+    flex-wrap: wrap;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 12px;
+    margin: 10px auto;
+    width: 95%;
+    max-width: 1200px;
+    z-index: 130;
+}
+
+.action-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    background: linear-gradient(to right, #4CAF50, #2E7D32);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s;
+}
+
+.action-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
+}
+
+.action-btn:active {
+    transform: translateY(1px);
+}
+
+/* 控制区域 */
+.controls-wrapper {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 70%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    z-index: 20;
+    padding: 0;
+    /* background-color: #0072ff; */
+}
+
+/* 摇杆容器 */
+.joystick-container {
+    height: 250px;
+    width: 225px;
+    display: flex;
+    position: fixed;
+    flex-direction: column;
+}
+
+.joystick-container[data-joystick="joystick1"] {
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 100px;
+    left: 0;
+    /* background-color: hsl(239, 100%, 50%); */
+}
+
+.joystick-container[data-joystick="joystick2"] {
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 100px;
+    right: 0;
+    /* background-color: #00ffaa; */
+}
+
+.joystick-label {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    text-align: center;
+}
+
+/* 摇杆样式 */
+.joystick-outer {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: rgba(40, 70, 120, 0.6);
+    border: 2px solid rgba(100, 180, 255, 0.5);
+    box-shadow: 
+        inset 0 0 30px rgba(0, 0, 0, 0.5),
+        0 10px 40px rgba(0, 0, 0, 0.7);
+    overflow: visible;
+    margin: 0 !important;
+}
+
+/* 摇杆网格背景 */
+.joystick-outer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-image: 
+        radial-gradient(circle at center, transparent 40%, rgba(255, 255, 255, 0.07) 85%),
+        linear-gradient(0deg, transparent 48%, rgba(255, 255, 255, 0.15) 50%, transparent 52%),
+        linear-gradient(90deg, transparent 48%, rgba(255, 255, 255, 0.15) 50%, transparent 52%);
+    opacity: 0.9;
+}
+
+.joystick-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ff9966, #ff5500);
+    box-shadow: 
+        0 0 25px rgba(255, 85, 0, 0.8),
+        0 0 50px rgba(255, 85, 0, 0.4);
+    z-index: 2;
+    cursor: pointer;
+    transition: none;
+    transform: translate(-50%, -50%);
+}
+
+.joystick-inner::after {
+    content: '';
+    position: absolute;
+    top: 15%;
+    left: 15%;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.35);
+}
+
+/* 高度控制竖条 - 位于中间位置 */
+.vertical-slider-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 255px;
+    position: absolute;
+    flex: 0 0 100px;
+    bottom: 250px;
+    left: 0;
+    z-index: 5;
+    /* background-color: #ff416c; */
+}
+
+
+.vertical-slider-label {
+    font-size: 18px;
+    position: relative;
+    left: 40%;
+    top: 20%;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    font-weight: 700;
+}
+
+.vertical-slider-knob {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ff9966, #ff5500);
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 
+        0 0 15px rgba(255, 85, 0, 0.8),
+        0 0 30px rgba(255, 85, 0, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    transition: none !important;
+}
+
+.vertical-slider-knob:active {
+    transform: translateX(-50%) scale(1.2);
+    box-shadow: 0 0 20px rgba(255, 85, 0, 1),
+                0 0 40px rgba(255, 85, 0, 0.6);
+}
+
+/* 倾角控制竖条 - 位于中间位置 */
+.pitch-slider-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 255px;
+    position: absolute;
+    flex: 0 0 100px;
+    bottom: 235px;
+    right: 0;
+    z-index: 5;
+    /* background-color: #ff5722; */
+}
+
+.pitch-slider-label {
+    font-size: 18px;
+    position: relative;
+    right: 40%;
+    top: 20%;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    font-weight: 700;
+}
+
+.pitch-slider-knob {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ff9966, #ff5500);
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 
+        0 0 15px rgba(255, 85, 0, 0.8),
+        0 0 30px rgba(255, 85, 0, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    transition: none !important;
+}
+
+.pitch-slider-knob:active {
+    transform: translateX(-50%) scale(1.2);
+    box-shadow: 0 0 20px rgba(255, 85, 0, 1),
+                0 0 40px rgba(255, 85, 0, 0.6);
+}
+
+.gait-period-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 230px;
+    position: absolute;
+    left: 225px;
+    bottom: 10px;
+    z-index: 5;
+    /* background-color: crimson; */
+}
+.gait-period-label {
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    font-weight: 700;
+}
+.gait-period-knob {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ff9966, #ff5500);
+    position: absolute;
+    top: 100px;
+    left: 25px;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 
+        0 0 15px rgba(255, 85, 0, 0.8),
+        0 0 30px rgba(255, 85, 0, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    transition: none !important;
+}
+.gait-period-knob:active {
+    transform: scale(1.2);
+    box-shadow: 0 0 20px rgba(255, 85, 0, 1),
+                0 0 40px rgba(255, 85, 0, 0.6);
+}
+
+.gait-length-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 230px;
+    position: absolute;
+    right: 225px;
+    bottom: 10px;
+    z-index: 5;
+    /* background-color: #ff5722; */
+}
+.gait-length-label {
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    font-weight: 700;
+}
+.gait-length-knob {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ff9966, #ff5500);
+    position: absolute;
+    left: 35px;
+    top: 100px;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 
+        0 0 15px rgba(255, 85, 0, 0.8),
+        0 0 30px rgba(255, 85, 0, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    transition: none !important;
+}
+.gait-length-knob:active {
+    transform: scale(1.2);
+    box-shadow: 0 0 20px rgba(255, 85, 0, 1),
+                0 0 40px rgba(255, 85, 0, 0.6);
+}
+.z-swing-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100px;
+    position: absolute;
+    flex: 0 0 100px;
+    margin: 0 0 350px 0px;
+    right: calc(50% - 175px);
+    /* background-color: #00ffaa; */
+}
+.z-swing-label {
+    font-size: 18px;
+    margin-bottom: 0px;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    font-weight: 700;
+}
+.z-swing-knob {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ff9966, #ff5500);
+    position: absolute;
+    left: 150px;
+    top: 46px;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 
+        0 0 15px rgba(255, 85, 0, 0.8),
+        0 0 30px rgba(255, 85, 0, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    transition: none !important;
+}
+.z-swing-knob:active {
+    transform: scale(1.2);
+    box-shadow: 0 0 20px rgba(255, 85, 0, 1),
+                0 0 40px rgba(255, 85, 0, 0.6);
+}
+
+/* 坐标显示面板 */
+.coords-display {
+    position: fixed;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 16px;
+    padding: 15px 30px;
+    width: 350px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    text-align: center;
+    z-index: 15;
+}
+
+.coords-title {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #aaccff;
+}
+
+.coords-values {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    font-size: 16px;
+}
+
+.coord-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.coord-label {
+    color: #ff9966;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.coord-value {
+    font-size: 18px;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 6px 12px;
+    width: 100%;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+}
+
+/* 操作说明 */
+.instructions {
+    text-align: center;
+    padding: 10px;
+    color: #ccccff;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+.multi-touch-hint {
+    text-align: center;
+    font-size: 16px;
+    color: #00e5ff;
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.7);
+    margin-bottom: 10px;
+}
+
+/* 调试信息 */
+.debug-container {
+    position: fixed; /* 替换原有定位 */
+    top: 80px; /* 下移避开顶部状态栏 */
+    right: 38%; /* 右侧定位 */
+    width: 390px; /* 限制宽度 */
+    max-height: 50vh; /* 限制高度 */
+    overflow-y: auto; /* 支持滚动 */
+    background: rgba(0, 0, 0, 0.35); /* 深色半透明背景 */
+    border-radius: 12px;
+    padding: 12px;
+    z-index: 100;
+    pointer-events: none; /* 穿透操作 */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); /* 添加阴影 */
+}
+@keyframes fadeInRight {
+    0% { 
+        opacity: 0;
+        transform: translateX(30px); /* 从右侧滑入 */
+    }
+    100% { 
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.debug-item {
+    animation: fadeInRight 0.4s ease-out; /* 替换原有动画 */
+    margin-bottom: 10px;
+}
+
+/* 屏幕方向提示 */
+.orientation-warning {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 1000;
+    color: white;
+    font-size: 24px;
+    text-align: center;
+    padding-top: 30%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.craw-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    background: linear-gradient(to right, #4CAF50, #2E7D32);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s;
+    position: absolute;
+    bottom: 50px;
+    left: 330px;
+    z-index: 110;
+}
+
+.sandpit-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    background: linear-gradient(to right, #ff5722, #d32f2f);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s;
+    position: absolute;
+    bottom: 40px;
+    right: 340px;
+    z-index: 110;
+}
+
+.straightup-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    background: linear-gradient(to right, #4CAF50, #2E7D32);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s;
+    position: absolute;
+    bottom: 100px;
+    left: 330px;
+    z-index: 110;
+}
+
+.stairs-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    background: linear-gradient(to right, #4CAF50, #2E7D32);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s;
+    position: absolute;
+    bottom: 150px;
+    left: 330px;
+    z-index: 110;
+}
+
+.slope-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    background: linear-gradient(to right, #ff5722, #d32f2f);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s;
+    position: absolute;
+    bottom: 90px;
+    right: 340px;
+    z-index: 110;
+}
+
+.sideslope-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    background: linear-gradient(to right, #ff5722, #d32f2f);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s;
+    position: absolute;
+    bottom: 140px;
+    right: 340px;
+    z-index: 110;
+}
+
+.action-btn:active, .craw-btn:active, .sandpit-btn:active, .stairs-btn:active, 
+.slope-btn:active, .sideslope-btn:active, .straightup-btn:active, .flip-btn:active, .jump-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+@media only screen and (orientation: portrait) {
+    .orientation-warning {
+        display: flex;
+    }
+}
+
+/* 响应式调整 */
+@media (max-width: 1100px) and (max-height: 630px) {
+    .joystick-outer {
+        width: 140px;
+        height: 140px;
+    }
+    
+    .vertical-slider-container {
+        height: 140px;
+        flex: 0 0 80px;
+    }
+    
+    .vertical-slider-background {
+        height: 140px;
+    }
+    
+    .status-item {
+        min-width: 120px;
+        padding: 6px 12px;
+        font-size: 14px;
+    }
+    
+    .action-btn {
+        min-width: 80px;
+        padding: 10px 0;
+        font-size: 14px;
+    }
+    
+    .coords-display {
+        width: 90%;
+        max-width: 280px;
+        bottom: 15px;
+    }
+}
+
+@media (max-width: 768px) {
+    .debug-container {
+        width: 85%;
+        right: 2.5%;
+        top: 70px;
+        font-size: 12px; /* 缩小字体 */
+    }
+    .joystick-container {
+        min-width: 35%;
+    }
+}
+
+@media (max-width: 600px) {
+    .controls-wrapper {
+        flex-wrap: wrap;
+        justify-content: space-around;
+    }
+    
+    .joystick-container {
+        height: 120px;
+        margin-top: auto;
+        min-width: 40%;
+        margin: 0 10px;
+    }
+
+    .joystick-outer {
+        height: 100px;
+    }
+    
+    .vertical-slider-container {
+        flex: 0 0 80%;
+        height: 80px;
+        margin-top: 20px;
+    }
+    
+    .vertical-slider-background {
+        height: 80px;
+    }
+    
+    .vertical-slider-knob {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .action-btn {
+        min-width: 70px;
+        font-size: 13px;
+        padding: 8px 0;
+    }
+    
+    .coords-display {
+        padding: 10px 15px;
+        width: 95%;
+    }
+}

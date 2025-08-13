@@ -1,0 +1,7 @@
+{
+    "rosbridge_ip": "192.168.31.112",
+    "rosbridge_port": "9090",
+    "http_port": 8080,
+    "publish_interval": 10,
+    "dead_zone": 0.05
+}
